@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
+    allowedHosts: true,
     proxy: {
       // Overridable so this works both for `npm run dev` on a host (the
       // original default) and inside a Docker network (Holodeck's workspace
