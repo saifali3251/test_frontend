@@ -25,5 +25,6 @@ export const api = {
   members: resource<Member>("/members"),
   labels: resource<Label>("/labels"),
   tasks: resource<Task>("/tasks"),
+  health: () => request<{ status: string }>("/health"),
   summary: () => request<DashboardSummary>("/dashboard/summary"),
 };

@@ -123,3 +123,7 @@ td:first-child { min-width: 190px; }
   .dialog-backdrop { padding: 0; align-items: end; }
   .dialog { max-height: 92vh; }
 }
+.health-card { max-width: 720px; }
+.health-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.health-dot.ok { background: #2e9e6b; }
+.health-dot.down { background: #c0503f; }
