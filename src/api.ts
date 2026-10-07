@@ -1,4 +1,4 @@
-import type { DashboardSummary, Label, Member, Project, Task } from "./types";
+import type { DashboardSummary, HealthStatus, Label, Member, Project, Task } from "./types";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
@@ -25,5 +25,6 @@ export const api = {
   members: resource<Member>("/members"),
   labels: resource<Label>("/labels"),
   tasks: resource<Task>("/tasks"),
+  health: () => request<HealthStatus>("/health"),
   summary: () => request<DashboardSummary>("/dashboard/summary"),
 };
