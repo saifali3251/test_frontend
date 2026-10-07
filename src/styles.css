@@ -123,3 +123,11 @@ td:first-child { min-width: 190px; }
   .dialog-backdrop { padding: 0; align-items: end; }
   .dialog { max-height: 92vh; }
 }
+.health-card { max-width: 560px; min-height: 0; }
+.health-list { margin: 18px 0; display: grid; gap: 14px; }
+.health-list div { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.health-list dt { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+.health-list dd { margin: 0; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.status-dot.ok { background: #2e9e5b; }
+.status-dot.down { background: #c0483a; }

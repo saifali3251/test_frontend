@@ -1,6 +1,7 @@
 import { FormEvent, ReactNode, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Activity,
   CheckCircle2,
   CircleDot,
   FolderKanban,
@@ -16,8 +17,9 @@ import {
 import { api } from "./api";
 import type { Label, Member, Priority, Project, ProjectStatus, Task, TaskStatus } from "./types";
 
-type View = "overview" | "projects" | "tasks" | "members" | "labels";
-type Dialog = { kind: Exclude<View, "overview">; item?: Project | Task | Member | Label } | null;
+type View = "overview" | "projects" | "tasks" | "members" | "labels" | "health";
+type EntityView = Exclude<View, "overview" | "health">;
+type Dialog = { kind: EntityView; item?: Project | Task | Member | Label } | null;
 
 const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -25,6 +27,7 @@ const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "tasks", label: "Tasks", icon: CheckCircle2 },
   { id: "members", label: "People", icon: Users },
   { id: "labels", label: "Labels", icon: Tags },
+  { id: "health", label: "System Health", icon: Activity },
 ];
 
 const titleCase = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -41,7 +44,7 @@ function App() {
   const loading = [summary, projects, tasks, members, labels].some((query) => query.isLoading);
   const error = [summary, projects, tasks, members, labels].find((query) => query.error)?.error;
 
-  const openCreate = () => view !== "overview" && setDialog({ kind: view });
+  const openCreate = () => view !== "overview" && view !== "health" && setDialog({ kind: view });
 
   return (
     <div className="app-shell">
@@ -62,22 +65,42 @@ function App() {
         <header className="topbar">
           <button className="menu-button icon-button" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu size={21} /></button>
           <div><p className="eyebrow">Project workspace</p><h1>{navItems.find((item) => item.id === view)?.label}</h1></div>
-          {view !== "overview" && <button className="primary-button" onClick={openCreate}><Plus size={17} /> New {view === "members" ? "person" : view.slice(0, -1)}</button>}
+          {view !== "overview" && view !== "health" && <button className="primary-button" onClick={openCreate}><Plus size={17} /> New {view === "members" ? "person" : view.slice(0, -1)}</button>}
         </header>
 
         <div className="content">
-          {loading && <div className="state">Loading workspace...</div>}
-          {error && <div className="state error">{error.message}</div>}
-          {!loading && !error && view === "overview" && <Overview summary={summary.data!} tasks={tasks.data!} projects={projects.data!} />}
-          {!loading && !error && view === "projects" && <Projects items={projects.data!} onEdit={(item) => setDialog({ kind: "projects", item })} />}
-          {!loading && !error && view === "tasks" && <Tasks items={tasks.data!} projects={projects.data!} members={members.data!} onEdit={(item) => setDialog({ kind: "tasks", item })} />}
-          {!loading && !error && view === "members" && <Members items={members.data!} onEdit={(item) => setDialog({ kind: "members", item })} />}
-          {!loading && !error && view === "labels" && <Labels items={labels.data!} onEdit={(item) => setDialog({ kind: "labels", item })} />}
+          {view === "health" && <Health />}
+          {view !== "health" && loading && <div className="state">Loading workspace...</div>}
+          {view !== "health" && error && <div className="state error">{error.message}</div>}
+          {view !== "health" && !loading && !error && view === "overview" && <Overview summary={summary.data!} tasks={tasks.data!} projects={projects.data!} />}
+          {view !== "health" && !loading && !error && view === "projects" && <Projects items={projects.data!} onEdit={(item) => setDialog({ kind: "projects", item })} />}
+          {view !== "health" && !loading && !error && view === "tasks" && <Tasks items={tasks.data!} projects={projects.data!} members={members.data!} onEdit={(item) => setDialog({ kind: "tasks", item })} />}
+          {view !== "health" && !loading && !error && view === "members" && <Members items={members.data!} onEdit={(item) => setDialog({ kind: "members", item })} />}
+          {view !== "health" && !loading && !error && view === "labels" && <Labels items={labels.data!} onEdit={(item) => setDialog({ kind: "labels", item })} />}
         </div>
       </main>
 
       {dialog && <Editor dialog={dialog} projects={projects.data ?? []} members={members.data ?? []} labels={labels.data ?? []} onClose={() => setDialog(null)} />}
     </div>
+  );
+}
+
+function Health() {
+  const health = useQuery({ queryKey: ["health"], queryFn: api.health, retry: false });
+  const ok = health.data?.status === "ok";
+  const checking = health.isFetching;
+  const label = checking ? "Checking..." : ok ? "Operational" : "Unavailable";
+  return (
+    <section className="project-card health-card">
+      <div className="card-top"><h2>System Health &amp; Diagnostics</h2><span className={ok && !checking ? "badge active" : "badge high"}>{label}</span></div>
+      <dl className="health-list">
+        <div><dt>Overall Status</dt><dd><span className={ok && !checking ? "status-dot ok" : "status-dot down"} />{label}</dd></div>
+        <div><dt>Database Connection</dt><dd>{checking ? "Checking..." : ok ? "Connected (PostgreSQL)" : "Unreachable"}</dd></div>
+        <div><dt>Uptime / Environment</dt><dd>Live Ephemeral Sandbox</dd></div>
+      </dl>
+      {health.error && !checking && <p>{health.error.message}</p>}
+      <div className="card-footer"><button className="primary-button" onClick={() => health.refetch()} disabled={checking}><Activity size={17} /> Ping Health Endpoint</button></div>
+    </section>
   );
 }
 
@@ -150,7 +173,7 @@ function MemberFields({ item }: { item?: Member }) { return <><Field label="Name
 function LabelFields({ item }: { item?: Label }) { return <><Field label="Name"><input name="name" required maxLength={60} defaultValue={item?.name} /></Field><Field label="Color"><input name="color" type="color" defaultValue={item?.color ?? "#287271"} /></Field></>; }
 function TaskFields({ item, projects, members, labels }: { item?: Task; projects: Project[]; members: Member[]; labels: Label[] }) { return <><Field label="Title"><input name="title" required maxLength={180} defaultValue={item?.title} /></Field><Field label="Description"><textarea name="description" rows={3} defaultValue={item?.description} /></Field><div className="field-grid"><Field label="Project"><select name="project_id" required defaultValue={item?.project_id}>{!item && <option value="">Select project</option>}{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></Field><Field label="Assignee"><select name="assignee_id" defaultValue={item?.assignee_id ?? ""}><option value="">Unassigned</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></Field><Field label="Status"><select name="status" defaultValue={item?.status ?? "todo"}>{(["todo", "in_progress", "done"] as TaskStatus[]).map((value) => <option key={value} value={value}>{titleCase(value)}</option>)}</select></Field><Field label="Priority"><select name="priority" defaultValue={item?.priority ?? "medium"}>{(["low", "medium", "high"] as Priority[]).map((value) => <option key={value} value={value}>{titleCase(value)}</option>)}</select></Field><Field label="Due date"><input name="due_date" type="date" defaultValue={item?.due_date ?? ""} /></Field></div>{labels.length > 0 && <Field label="Labels"><div className="check-list">{labels.map((label) => <label key={label.id}><input type="checkbox" name="label_ids" value={label.id} defaultChecked={item?.labels.some((current) => current.id === label.id)} /><span className="swatch" style={{ background: label.color }} />{label.name}</label>)}</div></Field>}</>; }
 
-function useRemove(kind: Exclude<View, "overview">) { const queryClient = useQueryClient(); return useMutation({ mutationFn: (id: number) => api[kind].remove(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: [kind] }); queryClient.invalidateQueries({ queryKey: ["summary"] }); } }); }
+function useRemove(kind: EntityView) { const queryClient = useQueryClient(); return useMutation({ mutationFn: (id: number) => api[kind].remove(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: [kind] }); queryClient.invalidateQueries({ queryKey: ["summary"] }); } }); }
 function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="field"><span>{label}</span>{children}</label>; }
 function Badge({ value }: { value: string }) { return <span className={`badge ${value}`}>{titleCase(value)}</span>; }
 function StatusDot({ status }: { status: TaskStatus }) { return <span className={`status-dot ${status}`} aria-label={titleCase(status)} />; }
