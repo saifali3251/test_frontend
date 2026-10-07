@@ -123,3 +123,9 @@ td:first-child { min-width: 190px; }
   .dialog-backdrop { padding: 0; align-items: end; }
   .dialog { max-height: 92vh; }
 }
+.health-card { min-height: 0; max-width: 560px; gap: 8px; }
+.health-list { margin: 18px 0; display: grid; gap: 14px; }
+.health-list > div { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.health-list dt { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+.health-list dd { margin: 0; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.health-card .primary-button { width: max-content; }

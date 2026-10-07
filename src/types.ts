@@ -46,3 +46,6 @@ export interface DashboardSummary {
   labels: number;
   tasks_by_status: Record<string, number>;
 }
+export interface HealthStatus {
+  status: string;
+}
