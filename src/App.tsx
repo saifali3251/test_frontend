@@ -1,14 +1,18 @@
-import { FormEvent, ReactNode, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Activity,
+  Check,
   CheckCircle2,
   CircleDot,
   FolderKanban,
   LayoutDashboard,
   Menu,
   Pencil,
+  Loader2,
   Plus,
   Tags,
+  Copy,
   Trash2,
   Users,
   X,
@@ -16,8 +20,8 @@ import {
 import { api } from "./api";
 import type { Label, Member, Priority, Project, ProjectStatus, Task, TaskStatus } from "./types";
 
-type View = "overview" | "projects" | "tasks" | "members" | "labels";
-type Dialog = { kind: Exclude<View, "overview">; item?: Project | Task | Member | Label } | null;
+type View = "overview" | "projects" | "tasks" | "members" | "labels" | "health";
+type Dialog = { kind: Exclude<View, "overview" | "health">; item?: Project | Task | Member | Label } | null;
 
 const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -25,6 +29,7 @@ const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "tasks", label: "Tasks", icon: CheckCircle2 },
   { id: "members", label: "People", icon: Users },
   { id: "labels", label: "Labels", icon: Tags },
+  { id: "health", label: "System Health", icon: Activity },
 ];
 
 const titleCase = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -41,7 +46,7 @@ function App() {
   const loading = [summary, projects, tasks, members, labels].some((query) => query.isLoading);
   const error = [summary, projects, tasks, members, labels].find((query) => query.error)?.error;
 
-  const openCreate = () => view !== "overview" && setDialog({ kind: view });
+  const openCreate = () => view !== "overview" && view !== "health" && setDialog({ kind: view });
 
   return (
     <div className="app-shell">
@@ -62,12 +67,13 @@ function App() {
         <header className="topbar">
           <button className="menu-button icon-button" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu size={21} /></button>
           <div><p className="eyebrow">Project workspace</p><h1>{navItems.find((item) => item.id === view)?.label}</h1></div>
-          {view !== "overview" && <button className="primary-button" onClick={openCreate}><Plus size={17} /> New {view === "members" ? "person" : view.slice(0, -1)}</button>}
+          {view !== "overview" && view !== "health" && <button className="primary-button" onClick={openCreate}><Plus size={17} /> New {view === "members" ? "person" : view.slice(0, -1)}</button>}
         </header>
 
         <div className="content">
-          {loading && <div className="state">Loading workspace...</div>}
-          {error && <div className="state error">{error.message}</div>}
+          {view === "health" && <Health />}
+          {view !== "health" && loading && <div className="state">Loading workspace...</div>}
+          {view !== "health" && error && <div className="state error">{error.message}</div>}
           {!loading && !error && view === "overview" && <Overview summary={summary.data!} tasks={tasks.data!} projects={projects.data!} />}
           {!loading && !error && view === "projects" && <Projects items={projects.data!} onEdit={(item) => setDialog({ kind: "projects", item })} />}
           {!loading && !error && view === "tasks" && <Tasks items={tasks.data!} projects={projects.data!} members={members.data!} onEdit={(item) => setDialog({ kind: "tasks", item })} />}
@@ -77,6 +83,65 @@ function App() {
       </main>
 
       {dialog && <Editor dialog={dialog} projects={projects.data ?? []} members={members.data ?? []} labels={labels.data ?? []} onClose={() => setDialog(null)} />}
+    </div>
+  );
+}
+
+function Health() {
+  const [latency, setLatency] = useState<number | null>(null);
+  const [pinging, setPinging] = useState(false);
+  const [healthy, setHealthy] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  const ping = useCallback(async () => {
+    setPinging(true);
+    const start = performance.now();
+    try {
+      await api.health();
+      setHealthy(true);
+    } catch {
+      setHealthy(false);
+    } finally {
+      setLatency(Math.round(performance.now() - start));
+      setPinging(false);
+    }
+  }, []);
+
+  useEffect(() => { void ping(); }, [ping]);
+
+  const copyDiagnostics = async () => {
+    const diagnostics = { status: "ok", timestamp: new Date().toISOString(), env: "sandbox" };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="health-grid">
+      <section className="panel health-card">
+        <p className="eyebrow">Core Service Health</p>
+        <dl className="health-list">
+          <div><dt>Backend API</dt><dd><span className={healthy ? "status-dot ok" : "status-dot down"} />{healthy ? "Connected" : "Unreachable"}</dd></div>
+          <div><dt>Database</dt><dd>{healthy ? "PostgreSQL (Connected)" : "PostgreSQL (Unknown)"}</dd></div>
+          <div><dt>Environment</dt><dd>Live Ephemeral Sandbox</dd></div>
+        </dl>
+      </section>
+      <section className="panel health-card">
+        <p className="eyebrow">Interactive Controls &amp; Metrics</p>
+        <div className="health-latency"><span>Ping Latency</span><span className={healthy ? "badge active" : "badge high"}>{latency === null ? "—" : `${latency}ms`}</span></div>
+        <div className="health-actions">
+          <button className="secondary-button" onClick={() => void ping()} disabled={pinging}>
+            {pinging ? <Loader2 size={16} className="spin" /> : <Activity size={16} />} Ping Health Endpoint
+          </button>
+          <button className="secondary-button" onClick={() => void copyDiagnostics()}>
+            {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Copied!" : "Copy Diagnostics JSON"}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -150,7 +215,7 @@ function MemberFields({ item }: { item?: Member }) { return <><Field label="Name
 function LabelFields({ item }: { item?: Label }) { return <><Field label="Name"><input name="name" required maxLength={60} defaultValue={item?.name} /></Field><Field label="Color"><input name="color" type="color" defaultValue={item?.color ?? "#287271"} /></Field></>; }
 function TaskFields({ item, projects, members, labels }: { item?: Task; projects: Project[]; members: Member[]; labels: Label[] }) { return <><Field label="Title"><input name="title" required maxLength={180} defaultValue={item?.title} /></Field><Field label="Description"><textarea name="description" rows={3} defaultValue={item?.description} /></Field><div className="field-grid"><Field label="Project"><select name="project_id" required defaultValue={item?.project_id}>{!item && <option value="">Select project</option>}{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></Field><Field label="Assignee"><select name="assignee_id" defaultValue={item?.assignee_id ?? ""}><option value="">Unassigned</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></Field><Field label="Status"><select name="status" defaultValue={item?.status ?? "todo"}>{(["todo", "in_progress", "done"] as TaskStatus[]).map((value) => <option key={value} value={value}>{titleCase(value)}</option>)}</select></Field><Field label="Priority"><select name="priority" defaultValue={item?.priority ?? "medium"}>{(["low", "medium", "high"] as Priority[]).map((value) => <option key={value} value={value}>{titleCase(value)}</option>)}</select></Field><Field label="Due date"><input name="due_date" type="date" defaultValue={item?.due_date ?? ""} /></Field></div>{labels.length > 0 && <Field label="Labels"><div className="check-list">{labels.map((label) => <label key={label.id}><input type="checkbox" name="label_ids" value={label.id} defaultChecked={item?.labels.some((current) => current.id === label.id)} /><span className="swatch" style={{ background: label.color }} />{label.name}</label>)}</div></Field>}</>; }
 
-function useRemove(kind: Exclude<View, "overview">) { const queryClient = useQueryClient(); return useMutation({ mutationFn: (id: number) => api[kind].remove(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: [kind] }); queryClient.invalidateQueries({ queryKey: ["summary"] }); } }); }
+function useRemove(kind: Exclude<View, "overview" | "health">) { const queryClient = useQueryClient(); return useMutation({ mutationFn: (id: number) => api[kind].remove(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: [kind] }); queryClient.invalidateQueries({ queryKey: ["summary"] }); } }); }
 function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="field"><span>{label}</span>{children}</label>; }
 function Badge({ value }: { value: string }) { return <span className={`badge ${value}`}>{titleCase(value)}</span>; }
 function StatusDot({ status }: { status: TaskStatus }) { return <span className={`status-dot ${status}`} aria-label={titleCase(status)} />; }

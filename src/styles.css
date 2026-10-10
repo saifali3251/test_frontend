@@ -123,3 +123,17 @@ td:first-child { min-width: 190px; }
   .dialog-backdrop { padding: 0; align-items: end; }
   .dialog { max-height: 92vh; }
 }
+.health-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.health-card { background: var(--paper); border: 1px solid var(--line); border-top: 3px solid var(--ink); padding: 23px; }
+.health-list { margin: 16px 0 0; display: grid; gap: 14px; }
+.health-list div, .health-latency { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.health-list dt { color: var(--muted); font-size: 13px; }
+.health-list dd { margin: 0; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.status-dot.ok { background: #2e9e6b; }
+.status-dot.down { background: #c0483a; }
+.health-latency { margin: 16px 0; }
+.health-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.spin { animation: health-spin 1s linear infinite; }
+@keyframes health-spin { to { transform: rotate(360deg); } }
+@media (max-width: 760px) { .health-grid { grid-template-columns: 1fr; } }

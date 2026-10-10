@@ -21,6 +21,7 @@ const resource = <T>(path: string) => ({
 });
 
 export const api = {
+  health: () => request<{ status: string }>("/health"),
   projects: resource<Project>("/projects"),
   members: resource<Member>("/members"),
   labels: resource<Label>("/labels"),
