@@ -69,7 +69,7 @@ function App() {
           {loading && <div className="state">Loading workspace...</div>}
           {error && <div className="state error">{error.message}</div>}
           {!loading && !error && view === "overview" && <Overview summary={summary.data!} tasks={tasks.data!} projects={projects.data!} />}
-          {!loading && !error && view === "projects" && <Projects items={projects.data!} onEdit={(item) => setDialog({ kind: "projects", item })} />}
+          {!loading && !error && view === "projects" && <Projects items={projects.data!} tasks={tasks.data!} onEdit={(item) => setDialog({ kind: "projects", item })} />}
           {!loading && !error && view === "tasks" && <Tasks items={tasks.data!} projects={projects.data!} members={members.data!} onEdit={(item) => setDialog({ kind: "tasks", item })} />}
           {!loading && !error && view === "members" && <Members items={members.data!} onEdit={(item) => setDialog({ kind: "members", item })} />}
           {!loading && !error && view === "labels" && <Labels items={labels.data!} onEdit={(item) => setDialog({ kind: "labels", item })} />}
@@ -100,10 +100,19 @@ function Overview({ summary, tasks, projects }: { summary: NonNullable<ReturnTyp
   );
 }
 
-function Projects({ items, onEdit }: { items: Project[]; onEdit: (item: Project) => void }) {
+function Projects({ items, tasks, onEdit }: { items: Project[]; tasks: Task[]; onEdit: (item: Project) => void }) {
   const remove = useRemove("projects");
   if (!items.length) return <Empty text="No projects yet. Create one to organize your work." />;
-  return <div className="item-grid">{items.map((item) => <article className="project-card" key={item.id}><div className="card-top"><Badge value={item.status} /><Actions onEdit={() => onEdit(item)} onDelete={() => remove.mutate(item.id)} /></div><h2>{item.name}</h2><p>{item.description || "No description provided."}</p><div className="card-footer"><span>Updated</span><time>{new Date(item.updated_at).toLocaleDateString()}</time></div></article>)}</div>;
+  return <div className="item-grid">{items.map((item) => <article className="project-card" key={item.id}><div className="card-top"><Badge value={item.status} /><Actions onEdit={() => onEdit(item)} onDelete={() => remove.mutate(item.id)} /></div><h2>{item.name}</h2><p>{item.description || "No description provided."}</p><ProjectProgress tasks={tasks.filter((task) => task.project_id === item.id)} /><div className="card-footer"><span>Updated</span><time>{new Date(item.updated_at).toLocaleDateString()}</time></div></article>)}</div>;
+}
+
+function ProjectProgress({ tasks }: { tasks: Task[] }) {
+  const total = tasks.length;
+  if (!total) return <div className="project-progress"><span className="progress-text">No tasks yet</span></div>;
+  const done = tasks.filter((task) => task.status === "done").length;
+  const percent = Math.round((done / total) * 100);
+  const tone = percent === 100 ? "complete" : percent > 0 ? "active" : "empty";
+  return <div className="project-progress"><div className="project-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><span className={tone} style={{ width: `${percent}%` }} /></div><span className="progress-text">{percent}% Complete ({done}/{total} Tasks)</span></div>;
 }
 
 function Tasks({ items, projects, members, onEdit }: { items: Task[]; projects: Project[]; members: Member[]; onEdit: (item: Task) => void }) {
