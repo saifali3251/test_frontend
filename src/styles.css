@@ -123,3 +123,10 @@ td:first-child { min-width: 190px; }
   .dialog-backdrop { padding: 0; align-items: end; }
   .dialog { max-height: 92vh; }
 }
+.project-progress { margin-top: 16px; display: flex; flex-direction: column; gap: 7px; }
+.project-progress-track { height: 7px; border-radius: 999px; background: #deddd6; overflow: hidden; }
+.project-progress-track span { display: block; height: 100%; border-radius: 999px; transition: width .4s ease; }
+.project-progress-track span.complete { background: #0F9D58; }
+.project-progress-track span.active { background: #1A73E8; }
+.project-progress-track span.empty { background: #9aa0a6; }
+.progress-text { color: var(--muted); font-size: 12px; }
