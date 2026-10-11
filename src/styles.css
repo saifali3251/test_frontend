@@ -123,3 +123,7 @@ td:first-child { min-width: 190px; }
   .dialog-backdrop { padding: 0; align-items: end; }
   .dialog { max-height: 92vh; }
 }
+.health-status { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.health-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
