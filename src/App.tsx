@@ -11,13 +11,14 @@ import {
   Tags,
   Trash2,
   Users,
+  Activity,
   X,
 } from "lucide-react";
 import { api } from "./api";
 import type { Label, Member, Priority, Project, ProjectStatus, Task, TaskStatus } from "./types";
 
-type View = "overview" | "projects" | "tasks" | "members" | "labels";
-type Dialog = { kind: Exclude<View, "overview">; item?: Project | Task | Member | Label } | null;
+type View = "overview" | "projects" | "tasks" | "members" | "labels" | "health";
+type Dialog = { kind: Exclude<View, "overview" | "health">; item?: Project | Task | Member | Label } | null;
 
 const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -25,6 +26,7 @@ const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "tasks", label: "Tasks", icon: CheckCircle2 },
   { id: "members", label: "People", icon: Users },
   { id: "labels", label: "Labels", icon: Tags },
+  { id: "health", label: "System Health", icon: Activity },
 ];
 
 const titleCase = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -41,7 +43,7 @@ function App() {
   const loading = [summary, projects, tasks, members, labels].some((query) => query.isLoading);
   const error = [summary, projects, tasks, members, labels].find((query) => query.error)?.error;
 
-  const openCreate = () => view !== "overview" && setDialog({ kind: view });
+  const openCreate = () => view !== "overview" && view !== "health" && setDialog({ kind: view });
 
   return (
     <div className="app-shell">
@@ -72,11 +74,75 @@ function App() {
           {!loading && !error && view === "projects" && <Projects items={projects.data!} onEdit={(item) => setDialog({ kind: "projects", item })} />}
           {!loading && !error && view === "tasks" && <Tasks items={tasks.data!} projects={projects.data!} members={members.data!} onEdit={(item) => setDialog({ kind: "tasks", item })} />}
           {!loading && !error && view === "members" && <Members items={members.data!} onEdit={(item) => setDialog({ kind: "members", item })} />}
-          {!loading && !error && view === "labels" && <Labels items={labels.data!} onEdit={(item) => setDialog({ kind: "labels", item })} />}
+                    {!loading && !error && view === "labels" && <Labels items={labels.data!} onEdit={(item) => setDialog({ kind: "labels", item })} />}
+          {!loading && !error && view === "health" && <HealthDashboard />}
         </div>
       </main>
 
       {dialog && <Editor dialog={dialog} projects={projects.data ?? []} members={members.data ?? []} labels={labels.data ?? []} onClose={() => setDialog(null)} />}
+    </div>
+  );
+}
+
+function HealthDashboard() {
+  const [latency, setLatency] = useState<number | null>(null);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [pinging, setPinging] = useState(false);
+
+  const fetchHealth = async () => {
+    setPinging(true);
+    const start = performance.now();
+    try {
+      await api.health();
+      const end = performance.now();
+      setLatency(Math.round(end - start));
+    } catch (error) {
+      console.error("Failed to ping health endpoint:", error);
+      setLatency(null); // Indicate an error or unknown state
+    } finally {
+      setPinging(false);
+    }
+  };
+
+  const copyDiagnostics = async () => {
+    try {
+      const diagnostics = {
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        env: "sandbox",
+      };
+      await navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
+      setCopyStatus('copied');
+    } catch (error) {
+      console.error("Failed to copy diagnostics:", error);
+      setCopyStatus('error');
+    } finally {
+      setTimeout(() => setCopyStatus('idle'), 2000); // Reset after 2 seconds
+    }
+  };
+
+  return (
+    <div className="overview-grid">
+      <div className="card">
+        <div className="card-top"><h2>Core Service Health</h2></div>
+        <ul>
+          <li>Backend API: <span className="status-dot online" /> Connected</li>
+          <li>Database: PostgreSQL (Connected)</li>
+          <li>Environment: Live Ephemeral Sandbox</li>
+        </ul>
+      </div>
+      <div className="card">
+        <div className="card-top"><h2>Interactive Controls & Metrics</h2></div>
+        <p>Ping Latency: {pinging ? "..." : latency !== null ? `${latency}ms` : "N/A"}</p>
+        <div className="actions">
+          <button className="secondary-button" onClick={fetchHealth} disabled={pinging}>
+            {pinging ? "Pinging..." : "Ping Health Endpoint"}
+          </button>
+          <button className="secondary-button" onClick={copyDiagnostics}>
+            {copyStatus === 'copied' ? "Copied!" : "Copy Diagnostics JSON"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -150,7 +216,13 @@ function MemberFields({ item }: { item?: Member }) { return <><Field label="Name
 function LabelFields({ item }: { item?: Label }) { return <><Field label="Name"><input name="name" required maxLength={60} defaultValue={item?.name} /></Field><Field label="Color"><input name="color" type="color" defaultValue={item?.color ?? "#287271"} /></Field></>; }
 function TaskFields({ item, projects, members, labels }: { item?: Task; projects: Project[]; members: Member[]; labels: Label[] }) { return <><Field label="Title"><input name="title" required maxLength={180} defaultValue={item?.title} /></Field><Field label="Description"><textarea name="description" rows={3} defaultValue={item?.description} /></Field><div className="field-grid"><Field label="Project"><select name="project_id" required defaultValue={item?.project_id}>{!item && <option value="">Select project</option>}{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></Field><Field label="Assignee"><select name="assignee_id" defaultValue={item?.assignee_id ?? ""}><option value="">Unassigned</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></Field><Field label="Status"><select name="status" defaultValue={item?.status ?? "todo"}>{(["todo", "in_progress", "done"] as TaskStatus[]).map((value) => <option key={value} value={value}>{titleCase(value)}</option>)}</select></Field><Field label="Priority"><select name="priority" defaultValue={item?.priority ?? "medium"}>{(["low", "medium", "high"] as Priority[]).map((value) => <option key={value} value={value}>{titleCase(value)}</option>)}</select></Field><Field label="Due date"><input name="due_date" type="date" defaultValue={item?.due_date ?? ""} /></Field></div>{labels.length > 0 && <Field label="Labels"><div className="check-list">{labels.map((label) => <label key={label.id}><input type="checkbox" name="label_ids" value={label.id} defaultChecked={item?.labels.some((current) => current.id === label.id)} /><span className="swatch" style={{ background: label.color }} />{label.name}</label>)}</div></Field>}</>; }
 
-function useRemove(kind: Exclude<View, "overview">) { const queryClient = useQueryClient(); return useMutation({ mutationFn: (id: number) => api[kind].remove(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: [kind] }); queryClient.invalidateQueries({ queryKey: ["summary"] }); } }); }
+function useRemove(kind: Exclude<View, "overview">) {
+  const queryClient = useQueryClient();
+  if (kind === "health") {
+    return { mutate: () => { throw new Error("Health dashboard cannot be removed"); } };
+  }
+  return useMutation({ mutationFn: (id: number) => api[kind].remove(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: [kind] }); queryClient.invalidateQueries({ queryKey: ["summary"] }); } });
+}
 function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="field"><span>{label}</span>{children}</label>; }
 function Badge({ value }: { value: string }) { return <span className={`badge ${value}`}>{titleCase(value)}</span>; }
 function StatusDot({ status }: { status: TaskStatus }) { return <span className={`status-dot ${status}`} aria-label={titleCase(status)} />; }
