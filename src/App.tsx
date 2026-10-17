@@ -81,7 +81,7 @@ function App() {
   );
 }
 
-function Overview({ summary, tasks, projects }: { summary: NonNullable<ReturnType<typeof useQuery>['data']> & { projects: number; members: number; tasks: number; labels: number; tasks_by_status: Record<string, number> }; tasks: Task[]; projects: Project[] }) {
+function Overview({ summary, tasks, projects }: { summary: NonNullable<ReturnType<typeof useQuery>['data']> & { projects: number; members: number; tasks: number; labels: number; tasks_by_status: Record<string, number>; tasks_by_priority?: Record<string, number> }; tasks: Task[]; projects: Project[] }) {
   const done = summary.tasks_by_status.done ?? 0;
   const completion = summary.tasks ? Math.round((done / summary.tasks) * 100) : 0;
   return (
@@ -95,6 +95,9 @@ function Overview({ summary, tasks, projects }: { summary: NonNullable<ReturnTyp
       </section>
       <section className="panel progress"><div className="section-heading"><div><p className="eyebrow">Distribution</p><h2>Task status</h2></div></div>
         {(["todo", "in_progress", "done"] as TaskStatus[]).map((status) => { const count = summary.tasks_by_status[status] ?? 0; const width = summary.tasks ? (count / summary.tasks) * 100 : 0; return <div className="progress-row" key={status}><div><span>{titleCase(status)}</span><strong>{count}</strong></div><div className="progress-track"><span style={{ width: `${width}%` }} /></div></div>; })}
+      </section>
+      <section className="panel priorities"><div className="section-heading"><div><p className="eyebrow">Urgency</p><h2>Task priority</h2></div></div>
+        <PriorityMetrics summary={summary} tasks={tasks} />
       </section>
     </div>
   );
@@ -156,5 +159,39 @@ function Badge({ value }: { value: string }) { return <span className={`badge ${
 function StatusDot({ status }: { status: TaskStatus }) { return <span className={`status-dot ${status}`} aria-label={titleCase(status)} />; }
 function Actions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) { return <div className="actions"><button className="icon-button" onClick={onEdit} title="Edit" aria-label="Edit"><Pencil size={16} /></button><button className="icon-button danger" onClick={() => confirm("Delete this item?") && onDelete()} title="Delete" aria-label="Delete"><Trash2 size={16} /></button></div>; }
 function Empty({ text }: { text: string }) { return <div className="empty"><CircleDot size={30} /><h2>Nothing here yet</h2><p>{text}</p></div>; }
+
+function PriorityMetrics({ summary, tasks }: { summary: NonNullable<ReturnType<typeof useQuery>['data']> & { tasks_by_priority?: Record<string, number> }; tasks: Task[] }) {
+  const getPriorityCounts = () => {
+    if (summary.tasks_by_priority) {
+      return summary.tasks_by_priority;
+    }
+    const counts: Record<string, number> = { high: 0, medium: 0, low: 0 };
+    tasks.forEach((task) => {
+      counts[task.priority] = (counts[task.priority] || 0) + 1;
+    });
+    return counts;
+  };
+
+  const priorityCounts = getPriorityCounts();
+
+  return (
+    <div className="priority-metrics">
+      {(['high', 'medium', 'low'] as Priority[]).map((priority) => {
+        const count = priorityCounts[priority] ?? 0;
+        let className = 'priority-badge';
+        if (priority === 'high') className += ' high';
+        else if (priority === 'medium') className += ' medium';
+        else if (priority === 'low') className += ' low';
+
+        return (
+          <div className={className} key={priority}>
+            <strong>{count}</strong>
+            <span>{titleCase(priority)} Priority</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default App;
