@@ -6,6 +6,10 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts: true,
+    watch: {
+      usePolling: true,
+      interval: 1000,
+    },
     proxy: {
       "/api": process.env.VITE_API_PROXY_TARGET || "http://localhost:18000",
     },
