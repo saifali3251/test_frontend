@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "./api";
-import type { Label, Member, Priority, Project, ProjectStatus, Task, TaskStatus } from "./types";
+import type { Label, Member, Priority, Project, Task, TaskStatus } from "./types";
 
 type View = "overview" | "projects" | "tasks" | "members" | "labels";
 type Dialog = { kind: Exclude<View, "overview">; item?: Project | Task | Member | Label } | null;
@@ -31,6 +31,7 @@ const titleCase = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g,
 
 function App() {
   const [view, setView] = useState<View>("overview");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialog, setDialog] = useState<Dialog>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const summary = useQuery({ queryKey: ["summary"], queryFn: api.summary });
@@ -70,7 +71,7 @@ function App() {
           {error && <div className="state error">{error.message}</div>}
           {!loading && !error && view === "overview" && <Overview summary={summary.data!} tasks={tasks.data!} projects={projects.data!} />}
           {!loading && !error && view === "projects" && <Projects items={projects.data!} onEdit={(item) => setDialog({ kind: "projects", item })} />}
-          {!loading && !error && view === "tasks" && <Tasks items={tasks.data!} projects={projects.data!} members={members.data!} onEdit={(item) => setDialog({ kind: "tasks", item })} />}
+          {!loading && !error && view === "tasks" && <Tasks items={tasks.data!} projects={projects.data!} members={members.data!} onEdit={(item) => setDialog({ kind: "tasks", item })} statusFilter={statusFilter} setStatusFilter={setStatusFilter} totalTasks={tasks.data!.length} />}
           {!loading && !error && view === "members" && <Members items={members.data!} onEdit={(item) => setDialog({ kind: "members", item })} />}
           {!loading && !error && view === "labels" && <Labels items={labels.data!} onEdit={(item) => setDialog({ kind: "labels", item })} />}
         </div>
@@ -106,10 +107,35 @@ function Projects({ items, onEdit }: { items: Project[]; onEdit: (item: Project)
   return <div className="item-grid">{items.map((item) => <article className="project-card" key={item.id}><div className="card-top"><Badge value={item.status} /><Actions onEdit={() => onEdit(item)} onDelete={() => remove.mutate(item.id)} /></div><h2>{item.name}</h2><p>{item.description || "No description provided."}</p><div className="card-footer"><span>Updated</span><time>{new Date(item.updated_at).toLocaleDateString()}</time></div></article>)}</div>;
 }
 
-function Tasks({ items, projects, members, onEdit }: { items: Task[]; projects: Project[]; members: Member[]; onEdit: (item: Task) => void }) {
+function Tasks({ items, projects, members, onEdit, statusFilter, setStatusFilter, totalTasks }: { items: Task[]; projects: Project[]; members: Member[]; onEdit: (item: Task) => void; statusFilter: string; setStatusFilter: (status: string) => void; totalTasks: number }) {
   const remove = useRemove("tasks");
-  if (!items.length) return <Empty text="No tasks yet. Add one when a project is ready." />;
-  return <div className="table-wrap"><table><thead><tr><th>Task</th><th>Project</th><th>Assignee</th><th>Priority</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.title}</strong><span className="cell-note">{item.due_date ? `Due ${new Date(`${item.due_date}T00:00:00`).toLocaleDateString()}` : "No due date"}</span></td><td>{projects.find((project) => project.id === item.project_id)?.name ?? "Unknown"}</td><td>{members.find((member) => member.id === item.assignee_id)?.name ?? "Unassigned"}</td><td><Badge value={item.priority} /></td><td><Badge value={item.status} /></td><td><Actions onEdit={() => onEdit(item)} onDelete={() => remove.mutate(item.id)} /></td></tr>)}</tbody></table></div>;
+
+  const filteredItems = statusFilter === "all"
+    ? items
+    : items.filter(item => item.status === statusFilter);
+
+  if (!filteredItems.length) {
+    return (
+      <Empty text={statusFilter === "all" ? "No tasks yet. Add one when a project is ready." : `No tasks found for "${titleCase(statusFilter)}" status.`} />
+    );
+  }
+
+  return (
+    <>
+      <div className="filter-pill-bar">
+        {["all", "todo", "in_progress", "done"].map((status) => (
+          <button
+            key={status}
+            className={statusFilter === status ? "pill active" : "pill"}
+            onClick={() => setStatusFilter(status)}
+          >
+            {titleCase(status)} {status === "all" && `(${totalTasks})`}
+          </button>
+        ))}
+      </div>
+      <div className="table-wrap"><table><thead><tr><th>Task</th><th>Project</th><th>Assignee</th><th>Priority</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{filteredItems.map((item) => <tr key={item.id}><td><strong>{item.title}</strong><span className="cell-note">{item.due_date ? `Due ${new Date(`${item.due_date}T00:00:00`).toLocaleDateString()}` : "No due date"}</span></td><td>{projects.find((project) => project.id === item.project_id)?.name ?? "Unknown"}</td><td>{members.find((member) => member.id === item.assignee_id)?.name ?? "Unassigned"}</td><td><Badge value={item.priority} /></td><td><Badge value={item.status} /></td><td><Actions onEdit={() => onEdit(item)} onDelete={() => remove.mutate(item.id)} /></td></tr>)}</tbody></table></div>
+    </>
+  );
 }
 
 function Members({ items, onEdit }: { items: Member[]; onEdit: (item: Member) => void }) {
