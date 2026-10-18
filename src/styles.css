@@ -59,7 +59,24 @@ h2 { letter-spacing: 0; }
 .badge.active, .badge.done, .badge.low { color: #1d6057; border-color: #acd0c5; background: #e4f0ec; }
 .badge.high, .badge.paused { color: #9a4337; border-color: #e5b7af; background: #f7e8e5; }
 .badge.in_progress, .badge.medium, .badge.planning { color: #826720; border-color: #e0ce91; background: #f7f0d7; }
+.tasks-view { border-top: 3px solid var(--ink); }
+.filter-bar { display: flex; gap: 8px; padding: 16px 20px; background: #ebe9e2; border-bottom: 1px solid var(--line); }
+.filter-pill { background: transparent; border: 1px solid var(--line); padding: 7px 14px; border-radius: 999px; font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 7px; }
+.filter-pill:hover { border-color: var(--ink); color: var(--ink); }
+.filter-pill.active { background: var(--green); border-color: var(--green); color: white; }
+.filter-pill.active .count { color: rgba(255,255,255,.7); }
+.filter-pill .count { font-size: 11px; color: var(--ink); opacity: .6; }
 .table-wrap { overflow-x: auto; border-top: 3px solid var(--ink); background: var(--paper); }
+table { width: 100%; border-collapse: collapse; }
+
+.table-wrap { overflow-x: auto; border-top: 3px solid var(--ink); background: var(--paper); }
+.tasks-view { border-top: 3px solid var(--ink); }
+.filter-bar { display: flex; gap: 8px; padding: 16px 20px; background: #ebe9e2; border-bottom: 1px solid var(--line); }
+.filter-pill { background: transparent; border: 1px solid var(--line); padding: 7px 14px; border-radius: 999px; font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 7px; }
+.filter-pill:hover { border-color: var(--ink); color: var(--ink); }
+.filter-pill.active { background: var(--green); border-color: var(--green); color: white; }
+.filter-pill.active .count { color: rgba(255,255,255,.7); }
+.filter-pill .count { font-size: 11px; color: var(--ink); opacity: .6; }
 table { width: 100%; border-collapse: collapse; }
 th { color: var(--muted); font: 500 10px "DM Mono", monospace; text-transform: uppercase; text-align: left; }
 th, td { padding: 15px 17px; border-bottom: 1px solid var(--line); }
