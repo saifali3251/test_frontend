@@ -155,6 +155,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) { re
 function Badge({ value }: { value: string }) { return <span className={`badge ${value}`}>{titleCase(value)}</span>; }
 function StatusDot({ status }: { status: TaskStatus }) { return <span className={`status-dot ${status}`} aria-label={titleCase(status)} />; }
 function Actions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) { return <div className="actions"><button className="icon-button" onClick={onEdit} title="Edit" aria-label="Edit"><Pencil size={16} /></button><button className="icon-button danger" onClick={() => confirm("Delete this item?") && onDelete()} title="Delete" aria-label="Delete"><Trash2 size={16} /></button></div>; }
+
 function Empty({ text }: { text: string }) { return <div className="empty"><CircleDot size={30} /><h2>Nothing here yet</h2><p>{text}</p></div>; }
 
 export default App;
