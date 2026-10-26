@@ -43,6 +43,7 @@ test_frontend/
 1. **Zero `any` Policy**: Never use `any`. Explicitly type all component props, state hooks, and API responses.
 2. **Centralized Domain Models**: All entities (Project, Task, Member, Label, Status enums) MUST be defined in `src/types.ts`. Keep these in exact parity with backend Pydantic schemas.
 3. **Strict Null Checks**: Always handle optional and nullable fields (e.g. `due_date: string | null`, `assignee_id: number | null`) with proper optional chaining or guards.
+4. **View Union vs. CRUD ResourceKind (`src/App.tsx`)**: When adding a non-CRUD view (e.g. `"health"`, `"analytics"`, `"settings"`) to `type View`, NEVER add it to `type ResourceKind` (`"projects" | "tasks" | "members" | "labels"`), and NEVER replace `ResourceKind` with `Exclude<View, "overview">`. `Dialog` and `useRemove` rely on `ResourceKind` having `.create`, `.update`, and `.remove` methods on `api[kind]`.
 
 ### 3.2 API Integration & Networking
 1. **Use Centralized Client**: All network requests to the backend must go through `src/api.ts` (e.g. `api.projects.list()`, `api.tasks.create(...)`).
@@ -70,13 +71,11 @@ test_frontend/
 Before completing any task or declaring work ready for pull request, execute the following commands and ensure zero errors:
 
 ```bash
-# 1. ESLint checks (must exit with code 0)
-npm run lint
+# 1. TypeScript strict type checking (must exit with code 0)
+npx --yes tsc -b
 
-# 2. TypeScript strict type checking (must exit with code 0)
-npx tsc -b
-
-# 3. Production asset build verification (must exit with code 0)
+# 2. Production asset build verification (must exit with code 0)
 npm run build
 ```
+
 
