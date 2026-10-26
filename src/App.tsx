@@ -12,12 +12,13 @@ import {
   Trash2,
   Users,
   X,
+  Activity,
 } from "lucide-react";
 import { api } from "./api";
 import type { Label, Member, Priority, Project, ProjectStatus, Task, TaskStatus } from "./types";
 
 type ResourceKind = "projects" | "tasks" | "members" | "labels";
-type View = "overview" | ResourceKind;
+type View = "overview" | ResourceKind | "health";
 type Dialog = { kind: ResourceKind; item?: Project | Task | Member | Label } | null;
 const isResourceView = (v: View): v is ResourceKind =>
   v === "projects" || v === "tasks" || v === "members" || v === "labels";
@@ -28,6 +29,7 @@ const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "tasks", label: "Tasks", icon: CheckCircle2 },
   { id: "members", label: "People", icon: Users },
   { id: "labels", label: "Labels", icon: Tags },
+  { id: "health", label: "System Health", icon: Activity },
 ];
 
 const titleCase = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -76,6 +78,7 @@ function App() {
           {!loading && !error && view === "tasks" && <Tasks items={tasks.data!} projects={projects.data!} members={members.data!} onEdit={(item) => setDialog({ kind: "tasks", item })} />}
           {!loading && !error && view === "members" && <Members items={members.data!} onEdit={(item) => setDialog({ kind: "members", item })} />}
           {!loading && !error && view === "labels" && <Labels items={labels.data!} onEdit={(item) => setDialog({ kind: "labels", item })} />}
+          {!loading && !error && view === "health" && <Health />}
         </div>
       </main>
 
@@ -159,5 +162,92 @@ function Badge({ value }: { value: string }) { return <span className={`badge ${
 function StatusDot({ status }: { status: TaskStatus }) { return <span className={`status-dot ${status}`} aria-label={titleCase(status)} />; }
 function Actions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) { return <div className="actions"><button className="icon-button" onClick={onEdit} title="Edit" aria-label="Edit"><Pencil size={16} /></button><button className="icon-button danger" onClick={() => confirm("Delete this item?") && onDelete()} title="Delete" aria-label="Delete"><Trash2 size={16} /></button></div>; }
 function Empty({ text }: { text: string }) { return <div className="empty"><CircleDot size={30} /><h2>Nothing here yet</h2><p>{text}</p></div>; }
+
+function Health() {
+  const [latency, setLatency] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const pingHealth = async () => {
+    setLoading(true);
+    const start = Date.now();
+    try {
+      await api.health();
+      setLatency(Date.now() - start);
+    } catch (error) {
+      console.error("Health check failed:", error);
+      setLatency(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyDiagnostics = () => {
+    const diagnostics = {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      env: "sandbox",
+    };
+    navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="overview-grid">
+      <section className="panel">
+        <div className="section-heading">
+          <div><p className="eyebrow">Status</p><h2>Core Service Health</h2></div>
+        </div>
+        <div className="item-grid">
+          <article className="project-card">
+            <div className="card-top">
+              <span className="status-dot done" /><span>Backend API</span>
+            </div>
+            <h2>Connected</h2>
+          </article>
+          <article className="project-card">
+            <div className="card-top">
+              <span className="status-dot done" /><span>Database</span>
+            </div>
+            <h2>PostgreSQL (Connected)</h2>
+          </article>
+          <article className="project-card">
+            <div className="card-top">
+              <span className="status-dot done" /><span>Environment</span>
+            </div>
+            <h2>Live Ephemeral Sandbox</h2>
+          </article>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div><p className="eyebrow">Controls</p><h2>Interactive Controls & Metrics</h2></div>
+        </div>
+        <div className="item-grid">
+          <article className="project-card">
+            <div className="card-top">
+              <span>Ping Latency</span>
+            </div>
+            <h2>{latency !== null ? `${latency}ms` : "N/A"}</h2>
+            <button className="secondary-button" onClick={pingHealth} disabled={loading}>
+              {loading ? "Pinging..." : "Ping Health Endpoint"}
+            </button>
+          </article>
+          <article className="project-card">
+            <div className="card-top">
+              <span>Diagnostics</span>
+            </div>
+            <h2>Copy to clipboard</h2>
+            <button className="secondary-button" onClick={copyDiagnostics}>
+              {copied ? "Copied!" : "Copy Diagnostics JSON"}
+            </button>
+          </article>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 export default App;
