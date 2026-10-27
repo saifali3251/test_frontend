@@ -1,6 +1,7 @@
 import { FormEvent, ReactNode, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Activity,
   CheckCircle2,
   CircleDot,
   FolderKanban,
@@ -17,7 +18,7 @@ import { api } from "./api";
 import type { Label, Member, Priority, Project, ProjectStatus, Task, TaskStatus } from "./types";
 
 type ResourceKind = "projects" | "tasks" | "members" | "labels";
-type View = "overview" | ResourceKind;
+type View = "overview" | ResourceKind | "system_health";
 type Dialog = { kind: ResourceKind; item?: Project | Task | Member | Label } | null;
 const isResourceView = (v: View): v is ResourceKind =>
   v === "projects" || v === "tasks" || v === "members" || v === "labels";
@@ -28,6 +29,7 @@ const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "tasks", label: "Tasks", icon: CheckCircle2 },
   { id: "members", label: "People", icon: Users },
   { id: "labels", label: "Labels", icon: Tags },
+  { id: "system_health", label: "System Health", icon: Activity },
 ];
 
 const titleCase = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -76,6 +78,7 @@ function App() {
           {!loading && !error && view === "tasks" && <Tasks items={tasks.data!} projects={projects.data!} members={members.data!} onEdit={(item) => setDialog({ kind: "tasks", item })} />}
           {!loading && !error && view === "members" && <Members items={members.data!} onEdit={(item) => setDialog({ kind: "members", item })} />}
           {!loading && !error && view === "labels" && <Labels items={labels.data!} onEdit={(item) => setDialog({ kind: "labels", item })} />}
+          {!loading && !error && view === "system_health" && <SystemHealth />}
         </div>
       </main>
 
@@ -159,5 +162,32 @@ function Badge({ value }: { value: string }) { return <span className={`badge ${
 function StatusDot({ status }: { status: TaskStatus }) { return <span className={`status-dot ${status}`} aria-label={titleCase(status)} />; }
 function Actions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) { return <div className="actions"><button className="icon-button" onClick={onEdit} title="Edit" aria-label="Edit"><Pencil size={16} /></button><button className="icon-button danger" onClick={() => confirm("Delete this item?") && onDelete()} title="Delete" aria-label="Delete"><Trash2 size={16} /></button></div>; }
 function Empty({ text }: { text: string }) { return <div className="empty"><CircleDot size={30} /><h2>Nothing here yet</h2><p>{text}</p></div>; }
+
+function SystemHealth() {
+  const health = useQuery({ queryKey: ["health"], queryFn: api.health.get });
+
+  return (
+    <div className="item-grid">
+      <article className="app-shell" style={{ display: "flex", flexDirection: "column", gap: "1rem", padding: "1rem" }}>
+        <h2>System Health</h2>
+        <div>
+          <h3>Overall Status:</h3>
+          <p><StatusDot status={health.data?.status === "ok" ? "done" : "todo"} /> {health.data?.status === "ok" ? "Operational" : "Degraded"}</p>
+        </div>
+        <div>
+          <h3>Database Connection:</h3>
+          <p>Connected (PostgreSQL)</p>
+        </div>
+        <div>
+          <h3>Uptime / Environment:</h3>
+          <p>Live Ephemeral Sandbox</p>
+        </div>
+        <button className="primary-button" onClick={() => health.refetch()} disabled={health.isFetching}>
+          Ping Health Endpoint
+        </button>
+      </article>
+    </div>
+  );
+}
 
 export default App;

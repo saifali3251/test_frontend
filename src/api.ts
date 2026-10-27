@@ -26,4 +26,5 @@ export const api = {
   labels: resource<Label>("/labels"),
   tasks: resource<Task>("/tasks"),
   summary: () => request<DashboardSummary>("/dashboard/summary"),
+  health: { get: () => request<{ status: "ok" | "degraded" }>("/health") },
 };
