@@ -84,7 +84,7 @@ function App() {
   );
 }
 
-function Overview({ summary, tasks, projects }: { summary: NonNullable<ReturnType<typeof useQuery>['data']> & { projects: number; members: number; tasks: number; labels: number; tasks_by_status: Record<string, number> }; tasks: Task[]; projects: Project[] }) {
+function Overview({ summary, tasks, projects }: { summary: NonNullable<ReturnType<typeof useQuery>['data']> & { projects: number; members: number; tasks: number; labels: number; tasks_by_status: Record<string, number>; tasks_by_priority?: Record<string, number> }; tasks: Task[]; projects: Project[] }) {
   const done = summary.tasks_by_status.done ?? 0;
   const completion = summary.tasks ? Math.round((done / summary.tasks) * 100) : 0;
   return (
@@ -98,6 +98,30 @@ function Overview({ summary, tasks, projects }: { summary: NonNullable<ReturnTyp
       </section>
       <section className="panel progress"><div className="section-heading"><div><p className="eyebrow">Distribution</p><h2>Task status</h2></div></div>
         {(["todo", "in_progress", "done"] as TaskStatus[]).map((status) => { const count = summary.tasks_by_status[status] ?? 0; const width = summary.tasks ? (count / summary.tasks) * 100 : 0; return <div className="progress-row" key={status}><div><span>{titleCase(status)}</span><strong>{count}</strong></div><div className="progress-track"><span style={{ width: `${width}%` }} /></div></div>; })}
+      </section>
+      <section className="panel priority-metrics">
+        <div className="section-heading">
+          <div><p className="eyebrow">Urgency</p><h2>Task priority</h2></div>
+        </div>
+        {(() => {
+          const tasksByPriority = summary.tasks_by_priority || tasks.reduce((acc, task) => {
+            acc[task.priority] = (acc[task.priority] || 0) + 1;
+            return acc;
+          }, {} as Record<Priority, number>);
+
+          const priorityOrder: Priority[] = ["high", "medium", "low"];
+          const priorityColors = { high: "red", medium: "amber", low: "blue" };
+
+          return priorityOrder.map((priority) => {
+            const count = tasksByPriority[priority] ?? 0;
+            return (
+              <div className="metric" key={priority}>
+                <strong className={priorityColors[priority]}>{count}</strong>
+                <span>{titleCase(priority)} Priority</span>
+              </div>
+            );
+          });
+        })()}
       </section>
     </div>
   );

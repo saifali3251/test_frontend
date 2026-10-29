@@ -106,6 +106,10 @@ td:first-child { min-width: 190px; }
   .metric { padding-left: 12px; }
   .overview-grid { grid-template-columns: 1fr; }
   .summary-band, .activity, .progress { grid-column: 1; }
+  .priority-metrics {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 520px) {
@@ -123,3 +127,17 @@ td:first-child { min-width: 190px; }
   .dialog-backdrop { padding: 0; align-items: end; }
   .dialog { max-height: 92vh; }
 }
+
+.priority-metrics {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(100px, .35fr));
+  gap: 22px;
+  align-items: center;
+  text-align: center;
+}
+.priority-metrics .metric strong { font-size: 28px; }
+.priority-metrics .metric span { color: var(--ink); }
+.priority-metrics .metric strong.red { color: var(--red); }
+.priority-metrics .metric strong.amber { color: var(--yellow); }
+.priority-metrics .metric strong.blue { color: var(--green); }

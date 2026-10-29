@@ -45,4 +45,5 @@ export interface DashboardSummary {
   tasks: number;
   labels: number;
   tasks_by_status: Record<string, number>;
+  tasks_by_priority?: Record<string, number>;
 }
